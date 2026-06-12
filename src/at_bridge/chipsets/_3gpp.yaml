@@ -1,0 +1,626 @@
+# 3GPP 通用 AT 命令基础库
+# 来源: 3GPP TS 27.007, TS 27.005, EC200x AT Commands Manual
+# 测试设备: ASR Modem Device (COM6), VID=0x2ECC, 2026-06-12
+
+# ── 基础握手 ────────────────────────────
+
+at:
+  command: AT
+  name: AT握手
+  description: |-
+    发送空AT指令测试模组通信是否正常。
+    返回值: OK — 模组通信正常，可以继续发送后续指令。
+    通常作为开机后第一条指令，重试次数应设高以等待模组就绪。
+  expect: [OK]
+  timeout: 1.0
+  retry: 100
+  standard: 3gpp
+
+ate0:
+  command: ATE0
+  name: 关闭回显
+  description: |-
+    关闭AT指令回显模式。
+    返回值: OK — 回显已关闭，后续响应不再包含原始指令。
+    建议在握手成功后立即执行，使响应更干净。
+  expect: [OK]
+  timeout: 1.0
+  standard: 3gpp
+
+# ── 设备标识 (TS 27.007 Clause 5) ─────
+
+ati:
+  command: ATI
+  name: 查询产品信息
+  description: |-
+    查询模组完整产品信息（制造商、型号、固件版本等）。
+    返回值: 多行产品信息，比 AT+GMI/GMM/GMR 更详细。
+    实测示例: CIS / ASR Modem / Revision: 800VGBFRO56G0326
+    以 OK 结束。
+  expect: [OK]
+  timeout: 5.0
+  standard: 3gpp
+
+at+gmi:
+  command: AT+GMI
+  name: 查询制造商
+  description: |-
+    查询模组制造商名称。
+    返回值: +GMI: "<manufacturer>" — 制造商名称字符串，后跟 OK。
+    实测: "ASR"
+  expect: ['+GMI:', OK]
+  timeout: 1.0
+  standard: 3gpp
+
+at+gmm:
+  command: AT+GMM
+  name: 查询型号
+  description: |-
+    查询模组系统/RTOS型号。
+    返回值: +GMM: "<model>" — 系统名称，后跟 OK。
+    实测: "ThreadX R-5.1"
+  expect: ['+GMM:', OK]
+  timeout: 1.0
+  standard: 3gpp
+
+at+gmr:
+  command: AT+GMR
+  name: 查询软件版本
+  description: |-
+    查询模组完整固件版本号字符串，包含SDK版本、编译日期、功能配置等。
+    返回值: +GMR: "<full_revision>" — SDK版本详情，后跟 OK。
+    实测: CRANE_CAT1_CP_SDK_1.011.144X_...
+  expect: ['+GMR:', OK]
+  timeout: 1.0
+  standard: 3gpp
+
+at+cgsn:
+  command: AT+CGSN
+  name: 查询IMEI
+  description: |-
+    查询模组15位IMEI号（国际移动设备识别码）。
+    返回值: <IMEI> — 15位十进制数字字符串，后跟 OK。
+    等同于 AT+GSN。
+  expect: [OK]
+  timeout: 1.0
+  standard: 3gpp
+
+# ── SIM/PIN (TS 27.007 Clause 8) ─────
+
+at+cimi:
+  command: AT+CIMI
+  name: 查询IMSI
+  description: |-
+    查询SIM卡IMSI号（国际移动用户识别码）。
+    返回值: <IMSI> — 15位十进制数字字符串，后跟 OK。
+    需要SIM卡在位，否则返回 +CME ERROR: 10。
+  expect: [OK]
+  timeout: 1.0
+  standard: 3gpp
+
+at+cpin:
+  command: AT+CPIN?
+  name: SIM卡状态
+  description: |-
+    查询SIM卡PIN码状态。
+    返回值:
+      +CPIN: READY — SIM卡就绪，无需PIN码。
+      +CPIN: SIM PIN — 需要输入PIN码。
+      +CPIN: SIM PUK — SIM卡被锁，需要PUK码。
+      +CPIN: SIM PIN2 — 需要PIN2码。
+    后跟 OK。
+  expect: ['+CPIN: READY', OK]
+  timeout: 1.0
+  standard: 3gpp
+
+# ── 设备配置 (TS 27.007 Clause 8) ─────
+
+at+cfun:
+  command: AT+CFUN?
+  name: 查询功能模式
+  description: |-
+    查询模组当前功能模式。
+    返回值: +CFUN: <fun>
+      <fun>: 0=最小功能(射频关闭), 1=完整功能(默认), 4=飞行模式。
+    后跟 OK。
+  expect: ['+CFUN:', OK]
+  timeout: 1.0
+  standard: 3gpp
+
+at+cmee_query:
+  command: AT+CMEE?
+  name: 查询错误报告模式
+  description: |-
+    查询当前错误报告详细程度。
+    返回值: +CMEE: <n>
+      <n>: 0=仅ERROR, 1=数字错误码, 2=文字错误描述。
+    后跟 OK。调试时建议设置为2。
+  expect: ['+CMEE:', OK]
+  timeout: 1.0
+  standard: 3gpp
+
+at+cmee_set:
+  command: AT+CMEE=2
+  name: 设置详细错误报告
+  description: |-
+    设置错误报告为文字描述模式（推荐调试时使用）。
+    返回值: OK — 后续错误会返回 +CME ERROR: <描述>。
+  expect: [OK]
+  timeout: 1.0
+  standard: 3gpp
+
+at+ipr:
+  command: AT+IPR?
+  name: 查询波特率
+  description: |-
+    查询当前串口波特率设置。
+    返回值: +IPR: <baud>
+      <baud>: 0=自动波特率检测, 其他=固定波特率(如115200)。
+    后跟 OK。
+  expect: ['+IPR:', OK]
+  timeout: 1.0
+  standard: 3gpp
+
+at+cpas:
+  command: AT+CPAS
+  name: 查询电话活动状态
+  description: |-
+    查询模组当前活动状态。
+    返回值: +CPAS: <state>
+      <state>: 0=就绪, 1=不可用, 2=未知, 3=响铃, 4=通话中, 5=睡眠。
+    后跟 OK。
+  expect: ['+CPAS:', OK]
+  timeout: 1.0
+  standard: 3gpp
+
+at+cscs:
+  command: AT+CSCS?
+  name: 查询字符集
+  description: |-
+    查询当前TE字符集设置。
+    返回值: +CSCS: "<charset>" — 字符集名称。
+    实测: "IRA" (International Reference Alphabet)。
+    后跟 OK。
+  expect: ['+CSCS:', OK]
+  timeout: 1.0
+  standard: 3gpp
+
+# ── 配置文件管理 ────────────────────────
+
+at_f_reset:
+  command: AT&F
+  name: 恢复出厂设置
+  description: |-
+    将所有当前参数恢复为制造商默认值。
+    返回值: OK。不影响存储的用户配置文件（由AT&W保存）。
+  expect: [OK]
+  timeout: 1.0
+  standard: 3gpp
+
+at_v_config:
+  command: AT&V
+  name: 显示当前配置
+  description: |-
+    显示当前所有AT参数配置。
+    返回值: 多行配置信息，后跟 OK。
+  expect: [OK]
+  timeout: 1.0
+  standard: 3gpp
+
+at_w_save:
+  command: AT&W
+  name: 保存用户配置
+  description: |-
+    将当前参数保存到用户自定义配置文件。
+    返回值: OK — 保存成功。通过ATZ可恢复到此配置。
+  expect: [OK]
+  timeout: 1.0
+  standard: 3gpp
+
+at_z_reset:
+  command: ATZ
+  name: 恢复用户配置
+  description: |-
+    将所有当前参数恢复为用户自定义配置文件（由AT&W保存）。
+    返回值: OK — 恢复完成。
+  expect: [OK]
+  timeout: 1.0
+  standard: 3gpp
+
+# ── 响应格式控制 ────────────────────────
+
+at_q:
+  command: ATQ{n}
+  name: 结果码显示模式
+  description: |-
+    设置结果码（OK/ERROR）显示模式。
+    参数: 0=显示结果码, 1=静默模式(不显示结果码)。
+    返回值: OK。
+  params:
+    - {name: n, type: int, default: 0}
+  expect: [OK]
+  timeout: 1.0
+  standard: 3gpp
+
+at_v:
+  command: ATV{n}
+  name: 响应格式
+  description: |-
+    设置TA响应格式。
+    参数: 0=数字结果码(0/4...), 1=文字结果码(OK/ERROR)。
+    返回值: OK。
+  params:
+    - {name: n, type: int, default: 1}
+  expect: [OK]
+  timeout: 1.0
+  standard: 3gpp
+
+# ── S寄存器 ─────────────────────────────
+
+at_s3:
+  command: ATS3?
+  name: 命令行终止符
+  description: |-
+    查询命令行终止字符（默认13 = \r）。
+    返回值: <value>，后跟 OK。
+  expect: [OK]
+  timeout: 1.0
+  standard: 3gpp
+
+at_s4:
+  command: ATS4?
+  name: 响应格式化字符
+  description: |-
+    查询响应格式化字符（默认10 = \n）。
+    返回值: <value>，后跟 OK。
+  expect: [OK]
+  timeout: 1.0
+  standard: 3gpp
+
+at_s5:
+  command: ATS5?
+  name: 命令行编辑字符
+  description: |-
+    查询命令行编辑字符（默认8 = Backspace）。
+    返回值: <value>，后跟 OK。
+  expect: [OK]
+  timeout: 1.0
+  standard: 3gpp
+
+# ── 流控 (TS 27.007) ────────────────────
+
+at_ifc:
+  command: AT+IFC?
+  name: 查询流控模式
+  description: |-
+    查询TE-TA本地数据流控设置。
+    返回值: +IFC: <dce_by_dte>,<dte_by_dce>
+      0=无流控, 1=XON/XOFF软流控, 2=RTS/CTS硬流控。
+    后跟 OK。
+  expect: ['+IFC:', OK]
+  timeout: 1.0
+  standard: 3gpp
+
+# ── 时区 ─────────────────────────────────
+
+at_ctzu:
+  command: AT+CTZU?
+  name: 查询自动时区更新
+  description: |-
+    查询自动时区更新设置（通过NITZ网络时间）。
+    返回值: +CTZU: <mode>
+      0=关闭, 1=开启。
+    后跟 OK。
+  expect: ['+CTZU:', OK]
+  timeout: 1.0
+  standard: 3gpp
+
+at_ctzr:
+  command: AT+CTZR?
+  name: 查询时区报告
+  description: |-
+    查询时区变化URC报告设置。
+    返回值: +CTZR: <mode>
+      0=关闭, 1=开启。
+    后跟 OK。
+  expect: ['+CTZR:', OK]
+  timeout: 1.0
+  standard: 3gpp
+
+at+cclk:
+  command: AT+CCLK?
+  name: 查询时钟
+  description: |-
+    查询模组当前实时时钟时间。
+    返回值: +CCLK: "<time>"
+      格式: "YY/MM/DD,HH:MM:SS+TZ"。
+    后跟 OK。
+  expect: ['+CCLK:', OK]
+  timeout: 1.0
+  standard: 3gpp
+
+# ── 网络信号 (TS 27.007 Clause 8) ─────
+
+at+csq:
+  command: AT+CSQ
+  name: 信号质量
+  description: |-
+    查询当前网络信号强度 (RSSI) 和信道误码率 (BER)。
+    返回值: +CSQ: <rssi>,<ber>
+      <rssi>: 0(-113dBm) ~ 31(-51dBm)，99=未知。越大信号越好。
+      <ber>:  0~7(越低越好)，99=未知。
+    后跟 OK。dBm换算: 2*RSSI - 113。
+  expect: ['+CSQ:', OK]
+  timeout: 1.0
+  standard: 3gpp
+
+at+cesq:
+  command: AT+CESQ
+  name: 扩展信号质量
+  description: |-
+    查询扩展信号质量指标（4G/LTE），比AT+CSQ更准确。
+    返回值: +CESQ: <rsrq>,<rsrp>,<sinr>,<rsrq_2>,<rsrp_2>,<sinr_2>
+      <rsrp>: Reference Signal Received Power，0~97，越大越好。
+      <rsrq>: Reference Signal Received Quality，0~34，越大越好。
+      <sinr>: Signal to Interference plus Noise Ratio，dB。
+      255表示未知/不可检测。
+    后跟 OK。
+  expect: ['+CESQ:', OK]
+  timeout: 1.0
+  standard: 3gpp
+
+# ── 网络注册 (TS 27.007 Clause 7) ─────
+
+at+creg_query:
+  command: AT+CREG?
+  name: 查询网络注册状态
+  description: |-
+    查询GSM/UMTS网络注册状态。
+    返回值: +CREG: <n>,<stat>[,<lac>,<ci>[,<act>]]
+      <stat>: 0=未注册/未搜索, 1=已注册(归属), 2=搜索中, 3=注册被拒, 4=未知, 5=已注册(漫游)。
+    后跟 OK。
+  expect: [OK]
+  timeout: 1.0
+  standard: 3gpp
+
+at+cereg_query:
+  command: AT+CEREG?
+  name: 查询EPS网络注册状态
+  description: |-
+    查询当前EPS（4G LTE）网络注册状态。
+    返回值: +CEREG: <n>,<stat>[,<tac>,<ci>[,<act>]]
+      <n>: URC上报模式。
+      <stat>: 0=未注册/未搜索, 1=已注册(归属), 2=搜索中, 3=注册被拒, 4=未知, 5=已注册(漫游)。
+      <tac>: 跟踪区码（16进制）。
+      <ci>: 小区ID（16进制）。
+      <act>: 无线接入技术(7=LTE Cat.M1, 8=LTE NB-IoT)。
+    后跟 OK。
+  expect: ['+CEREG:', OK]
+  timeout: 1.0
+  standard: 3gpp
+
+at+cereg_set:
+  command: AT+CEREG={n}
+  name: 设置网络注册上报
+  description: |-
+    设置EPS网络注册状态URC上报模式。
+    参数: <n>=0 关闭, =1 启用, =2 启用并附带位置信息(TAC+CI)。
+    返回值: OK — 设置成功。
+  params:
+    - {name: n, type: int, default: 2}
+  expect: [OK]
+  timeout: 1.0
+  standard: 3gpp
+
+at+cereg_set_0:
+  command: AT+CEREG=0
+  name: 关闭网络注册上报
+  description: |-
+    关闭网络注册状态URC上报。
+    返回值: OK — URC上报已关闭。用于减少不必要的中断信息。
+  expect: [OK]
+  timeout: 1.0
+  standard: 3gpp
+
+at+cgreg_query:
+  command: AT+CGREG?
+  name: 查询GPRS注册状态
+  description: |-
+    查询GPRS分组域网络注册状态。
+    返回值: +CGREG: <n>,<stat>[,<lac>,<ci>[,<act>]]
+    格式与CREG/CEREG一致。
+    后跟 OK。
+  expect: [OK]
+  timeout: 1.0
+  standard: 3gpp
+
+at+cgerep:
+  command: AT+CGEREP?
+  name: 查询分组域事件上报
+  description: |-
+    查询GPRS分组域事件上报设置。
+    返回值: +CGEREP: <mode>,<bfr>
+      <mode>: 0=关闭, 1=开启, 2=带详细数据。
+    后跟 OK。
+  expect: ['+CGEREP:', OK]
+  timeout: 1.0
+  standard: 3gpp
+
+at+cops_query:
+  command: AT+COPS?
+  name: 查询当前运营商
+  description: |-
+    查询当前注册的运营商信息。
+    返回值: +COPS: <mode>[,<format>,<oper>[,<act>]]
+      <mode>: 0=自动, 1=手动。
+      <format>: 0=长名称, 1=短名称, 2=数字MCC+MNC。
+      <oper>: 运营商标识。
+      <act>: 无线接入技术(7=LTE)。
+    后跟 OK。
+  expect: ['+COPS:', OK]
+  timeout: 1.0
+  standard: 3gpp
+
+at+cops_scan:
+  command: AT+COPS=?
+  name: 扫描可用运营商
+  description: |-
+    扫描当前环境中所有可用运营商网络。
+    返回值: +COPS: (<stat>,<long_name>,<short_name>,<numeric>[,<act>]) 列表
+      <stat>: 0=未知, 1=可用, 2=当前, 3=禁止。
+    后跟 OK。超时较长（最长60秒）。
+  expect: ['+COPS:', OK]
+  timeout: 60.0
+  standard: 3gpp
+
+at+copn:
+  command: AT+COPN
+  name: 读取运营商名称
+  description: |-
+    读取模块中存储的运营商名称列表。
+    返回值: +COPN: "<numeric>","<full_name>","<short_name>" — 多行列表。
+    后跟 OK。
+  expect: [OK]
+  timeout: 5.0
+  standard: 3gpp
+
+# ── PDP/数据 (TS 27.007 Clause 10) ────
+
+at+cgatt:
+  command: AT+CGATT?
+  name: 查询GPRS附着状态
+  description: |-
+    查询GPRS分组域附着状态。
+    返回值: +CGATT: <state>
+      <state>: 0=已分离, 1=已附着。
+    后跟 OK。
+  expect: ['+CGATT:', OK]
+  timeout: 1.0
+  standard: 3gpp
+
+at+cgdcnt:
+  command: AT+CGDCONT?
+  name: 查询PDP上下文
+  description: |-
+    查询所有已定义的PDP上下文。
+    返回值: +CGDCONT: <cid>,<PDP_type>,<APN>,<PDP_addr>,<d_comp>,<h_comp>[,<...>]
+    后跟 OK。
+  expect: ['+CGDCONT:', OK]
+  timeout: 1.0
+  standard: 3gpp
+
+at+cgdcont_set:
+  command: AT+CGDCONT=1,"IP","{apn}"
+  name: 设置APN
+  description: |-
+    设置指定PDP上下文ID的APN参数。
+    参数: <apn> — 接入点名称（如 CMNET, UNINET, CTNET）。
+    返回值: OK — PDP上下文已更新。
+  params:
+    - {name: apn, type: string, default: CMNET}
+  expect: [OK]
+  timeout: 1.0
+  standard: 3gpp
+
+at+cgact:
+  command: AT+CGACT?
+  name: 查询PDP激活状态
+  description: |-
+    查询所有PDP上下文的激活状态。
+    返回值: +CGACT: <cid>,<state>
+      <state>: 0=未激活, 1=已激活。
+    后跟 OK。
+  expect: ['+CGACT:', OK]
+  timeout: 1.0
+  standard: 3gpp
+
+at+cgpaddr:
+  command: AT+CGPADDR={cid}
+  name: 查询PDP地址
+  description: |-
+    查询指定PDP上下文分配的IP地址。
+    参数: <cid> — PDP上下文ID，通常为1。
+    返回值: +CGPADDR: <cid>,<PDP_addr>[,<PDP_addr_v6>]
+      <PDP_addr>: IPv4地址，未激活时为空。
+      <PDP_addr_v6>: IPv6地址（如支持）。
+    后跟 OK。
+  params:
+    - {name: cid, type: int, default: 1}
+  expect: ['+CGPADDR:', OK]
+  timeout: 1.0
+  standard: 3gpp
+
+at+cgdata:
+  command: AT+CGDATA=?
+  name: 查询数据状态模式
+  description: |-
+    查询支持的数据传输模式参数范围。
+    返回值: +CGDATA: (<PDP_type>),(<cid_range>)
+    后跟 OK。
+  expect: ['+CGDATA:', OK]
+  timeout: 1.0
+  standard: 3gpp
+
+# ── 安全 ─────────────────────────────────
+
+at+clck:
+  command: AT+CLCK=?
+  name: 查询支持的锁类型
+  description: |-
+    查询设备支持的锁定设施类型。
+    返回值: +CLCK: (<facilities>) — 支持列表: SC(SIM卡), AO(禁止呼出),
+      OI, OX, AI, IR, AB, AG, AC, FD, PN 等。
+    后跟 OK。
+  expect: ['+CLCK:', OK]
+  timeout: 1.0
+  standard: 3gpp
+
+# ── SIM访问 ──────────────────────────────
+
+at+csim:
+  command: AT+CSIM=?
+  name: 查询SIM通用访问参数
+  description: |-
+    查询通用SIM访问(Generic SIM Access)支持的参数范围。
+    返回值: +CSIM: (支持列表)，后跟 OK。
+  expect: ['+CSIM:', OK]
+  timeout: 1.0
+  standard: 3gpp
+
+at+crsm:
+  command: AT+CRSM=?
+  name: 查询受限SIM访问参数
+  description: |-
+    查询受限SIM访问(Restricted SIM Access)支持的参数范围。
+    返回值: +CRSM: (命令值),(文件ID范围),(P1/P2/P3范围),<data>,<pathlen>
+    后跟 OK。
+  expect: ['+CRSM:', OK]
+  timeout: 1.0
+  standard: 3gpp
+
+# ── 短信 ─────────────────────────────────
+
+at+csdh:
+  command: AT+CSDH?
+  name: 查询短信文本模式参数
+  description: |-
+    查询是否显示SMS文本模式详细参数（编码、有效期等）。
+    返回值: +CSDH: <show>
+      0=不显示, 1=显示。
+    后跟 OK。
+  expect: ['+CSDH:', OK]
+  timeout: 1.0
+  standard: 3gpp
+
+# ── 电话簿 ───────────────────────────────
+
+at+cnum:
+  command: AT+CNUM
+  name: 查询本机号码
+  description: |-
+    查询本机号码（需SIM卡EFmsisdn字段支持）。
+    返回值: +CNUM: <alpha>,<number>,<type> 或 +CME ERROR: 4（不支持/无存储）。
+    后跟 OK。
+  expect: [OK]
+  timeout: 1.0
+  standard: 3gpp

@@ -1,0 +1,684 @@
+# 移远 (Quectel) AT 私有命令
+# 来源: 800HG_POS 大趋测例 V1.1
+# 作为所有兼容移远命令集的产品的基础
+# 覆盖 _3gpp.yaml 中同名 key
+
+# ── 设备信息 ────────────────────────────
+
+at+fwver:
+  command: AT+FHWVER?
+  name: 查询硬件版本
+  description: |-
+    查询模组硬件版本号。
+    返回值: +FHWVER: "<version>" — 硬件版本字符串。
+    后跟 OK。
+  expect: ['+FHWVER:', OK]
+  timeout: 1.0
+  standard: vendor
+
+at+fswver:
+  command: AT+FSWVER
+  name: 查询固件版本
+  description: |-
+    查询模组各组件固件版本详情。
+    返回值（多行）:
+      VER_SDK: <sdk_ver>   — SDK版本
+      VER_DSP: <dsp_ver>   — DSP固件版本
+      VER_RF: <rf_ver>     — RF校准版本
+      VER_CAL: <cal_ver>   — 校准参数版本
+      VER_HW: <hw_ver>     — 硬件版本
+      VER_BAND: <band_ver> — 频段配置版本
+      VER_GIT: <git_hash>  — 源码Git提交哈希
+      VER_TIME: <time>     — 编译时间
+      VER_SW: <sw_ver>     — 软件版本号
+    后跟 OK。
+  expect: ['VER_SDK:', OK]
+  timeout: 1.0
+  standard: vendor
+
+at+qccid:
+  command: AT+QCCID
+  name: 查询CCID
+  description: |-
+    查询SIM卡集成电路卡标识符（ICCID）。
+    返回值: +QCCID: <iccid> — 20位十进制数字，唯一标识SIM卡。
+    后跟 OK。
+  expect: ['+QCCID:', OK]
+  timeout: 1.0
+  standard: vendor
+
+at+heapinfo:
+  command: AT^HEAPINFO
+  name: 查询堆空间
+  description: |-
+    查询模组当前可用堆内存大小。
+    返回值: ^HEAPINFO: <free_bytes> — 可用堆内存字节数。
+    后跟 OK。用于排查内存泄漏或资源不足问题。
+  expect: ['^HEAPINFO:', OK]
+  timeout: 1.0
+  standard: vendor
+
+# ── 频段 ────────────────────────────────
+
+at+band_query:
+  command: AT*BAND?
+  name: 查询支持频段
+  description: |-
+    查询模组硬件支持的4G频段列表。
+    返回值: *BAND: <band_name1>,<band_name2>,... — 支持的频段名称列表（如 Band1,Band3,Band5,...）。
+    后跟 OK。
+  expect: ['*BAND:', OK]
+  timeout: 1.0
+  standard: vendor
+
+at+bandind_query:
+  command: AT*BANDIND?
+  name: 查询当前频段
+  description: |-
+    查询模组当前注册的4G频段编号和通道。
+    返回值: *BANDIND: <index>,<band>,<channel> — <index>为频段序号，<band>为频段名称，<channel>为通道号。
+    后跟 OK。
+  expect: ['*BANDIND:', OK]
+  timeout: 1.0
+  standard: vendor
+
+at+calinfo:
+  command: AT*CALINFO=R,LteCal
+  name: 查询校准信息
+  description: |-
+    查询LTE射频校准数据。
+    返回值: *CALINFO: <cal_data> — 校准数据字符串，包含各频段的功率和频率补偿值。
+    后跟 OK。返回非空表示模组已正确校准。
+  expect: ['*CALINFO:', OK]
+  timeout: 1.0
+  standard: vendor
+
+# ── 网络 ────────────────────────────────
+
+at+qcell:
+  command: AT+QCELL?
+  name: 查询小区信息
+  description: |-
+    查询当前驻留小区的详细网络信息。
+    返回值: +QCELL: "<mode>","LTE",<mcc>,<mnc>,<tac>,<ci>,<pci>,<earfcn>
+      <mode>: 网络模式（如 "LTE"）。
+      <mcc>: 移动国家码（中国=460）。
+      <mnc>: 移动网络码（中国移动=00, 中国联通=01）。
+      <tac>:  跟踪区码（16进制）。
+      <ci>:   小区ID（16进制）。
+      <pci>:  物理小区ID。
+      <earfcn>: E-UTRA绝对射频信道号。
+    后跟 OK。
+  expect: ['+QCELL:', OK]
+  timeout: 10.0
+  standard: vendor
+
+# ── 系统控制 ───────────────────────────
+
+at+ipr:
+  command: AT+IPR={baud}
+  name: 设置波特率
+  description: |-
+    设置串口通信波特率。
+    参数: <baud> 常用值 — 115200(默认), 230400, 460800, 921600, 1000000(高速模式)。
+    返回值: OK — 波特率已更改。
+    注意: 切换波特率后必须用新波特率重新发送 AT 握手，否则后续指令无法通信。
+  params:
+    - {name: baud, type: int, default: 115200}
+  expect: [OK]
+  timeout: 0.3
+  standard: vendor
+
+at+ipr_query:
+  command: AT+IPR?
+  name: 查询波特率
+  description: |-
+    查询当前串口通信波特率。
+    返回值: +IPR: <baud> — 当前波特率值（如 115200）。
+    后跟 OK。
+  expect: ['+IPR:', OK]
+  timeout: 1.0
+  standard: vendor
+
+at+qsclk:
+  command: AT+QSCLK={mode}
+  name: PSM休眠控制
+  description: |-
+    控制模组进入/退出PSM深度休眠模式。
+    参数: <mode>=0 唤醒(退出休眠), =1 使能休眠(条件触发), =2 强制立即休眠。
+    返回值: OK — 指令已执行。
+    注意: <mode>=2 发送后模组将立即进入深度休眠，后续AT指令无法响应，需通过硬件唤醒(如拉低DTR)才能恢复通信。
+  params:
+    - {name: mode, type: int, default: 2}
+  expect: [OK]
+  timeout: 2.0
+  standard: vendor
+
+at+reset:
+  command: AT+RESET
+  name: 模块复位
+  description: |-
+    软复位模组，相当于断电重启。
+    返回值: OK — 复位指令已接收。随后模组重启，约2-5秒后输出 RDY 信号。
+    注意: 须在 RDY 信号出现后重新发送 AT 握手建立通信。所有之前的网络/PDP状态将丢失。
+  expect: [RDY]
+  timeout: 10.0
+  standard: vendor
+
+at+fciscfg:
+  command: AT+FCISCFG="wakeupMode",{mode}
+  name: 唤醒模式配置
+  description: |-
+    配置串口数据唤醒模式。
+    参数: <mode>=0 关闭自动唤醒（数据接收不唤醒模组），=1 开启自动唤醒。
+    返回值: OK — 配置已保存。
+    用于UART休眠唤醒测试：配置关闭唤醒后，在休眠期间发送数据不应唤醒模组。
+  params:
+    - {name: mode, type: int, default: 0}
+  expect: [OK]
+  timeout: 2.0
+  standard: vendor
+
+# ── 存储 ───────────────────────────────
+
+at+qflds:
+  command: AT+QFLDS="{fs}"
+  name: 查询文件系统空间
+  description: |-
+    查询指定文件系统的剩余空间。
+    参数: <fs> — UFS(用户文件系统), SFS(安全文件系统)。
+    返回值: +QFLDS: <fs>,<total>,<used>,<free> — 总空间/已用/剩余，单位字节。
+    后跟 OK。用于检查存储是否充足。
+  params:
+    - {name: fs, type: string, default: UFS}
+  expect: ['+QFLDS:', OK]
+  timeout: 1.0
+  standard: vendor
+
+# ── PDP/数据 ────────────────────────────
+
+at+qiactex:
+  command: AT+QIACTEX={ctx}
+  name: PDP激活
+  description: |-
+    激活指定PDP上下文，建立数据连接。
+    参数: <ctx> — PDP上下文ID，通常为1。
+    返回值:
+      +QIACTEX: <ctx>,<result> — <result>=0 表示激活成功。
+      如果失败，<result>为错误码。
+    后跟 OK。
+  params:
+    - {name: ctx, type: int, default: 1}
+  expect: [OK]
+  timeout: 20.0
+  standard: vendor
+
+at+qiact_query:
+  command: AT+QIACT?
+  name: 查询PDP状态
+  description: |-
+    查询所有PDP上下文的激活状态和分配的IP地址。
+    返回值（每个已激活的PDP上下文一行）:
+      +QIACT: <ctx>,<state>,<type>,"<ip_addr>"
+      <state>: 0=未激活, 1=已激活。
+      <type>: "IP" / "IPV6" / "IPV4V6"。
+      <ip_addr>: 分配的IP地址。
+    后跟 OK。
+  expect: [OK]
+  timeout: 10.0
+  standard: vendor
+
+at+qideact:
+  command: AT+QIDEACT={ctx}
+  name: PDP去激活
+  description: |-
+    去激活指定PDP上下文，断开数据连接。
+    参数: <ctx> — PDP上下文ID。
+    返回值:
+      OK — 去激活成功。
+      随后产生 +QIURC: "pdpdeact",<ctx> 的URC通知。
+  params:
+    - {name: ctx, type: int, default: 1}
+  expect: [OK]
+  timeout: 2.0
+  standard: vendor
+
+# ── TCP ────────────────────────────────
+
+at+qiopen:
+  command: AT+QIOPEN=1,{conn},"TCP","{host}",{port},0,{mode}
+  name: TCP打开连接
+  description: |-
+    打开TCP Socket连接到指定服务器。
+    参数:
+      <conn> — 连接ID(0-11)，一个ID可复用一个连接。
+      <host> — 服务器地址(IP或域名)。
+      <port> — 服务器端口号。
+      <mode> — 0=buffer直传模式, 1=hex透传模式。
+    返回值:
+      +QIOPEN: <conn>,<result> — <result>=0 表示连接成功。
+      <result> 错误码: 1=参数错误, 2=网络未注册, 3=正在连接, 4=连接失败,
+      5=连接被拒, 6=超时, 7=远端关闭。
+    后跟 OK。
+  params:
+    - {name: conn, type: int, default: 0}
+    - {name: host, type: string, required: true}
+    - {name: port, type: int, default: 6019}
+    - {name: mode, type: int, default: 0}
+  expect: ['+QIOPEN: {conn},0']
+  timeout: 20.0
+  standard: vendor
+
+at+qisend:
+  command: AT+QISEND={conn},{length}
+  name: TCP发送请求
+  description: |-
+    向TCP连接声明即将发送的数据长度。
+    参数:
+      <conn> — 连接ID。
+      <length> — 要发送的数据字节数，可为变量引用(如 {send_length})。
+    返回值: > — 模组准备好接收数据。
+    注意: 收到 '>' 提示符后才可通过 at+qisend_data 发送实际数据内容。
+  params:
+    - {name: conn, type: int, default: 0}
+    - {name: length, type: string}
+  expect: ['>']
+  timeout: 1.0
+  standard: vendor
+
+at+qisend_data:
+  command: '{data}'
+  type: data
+  name: TCP发送数据
+  description: |-
+    向TCP连接发送实际数据内容。
+    参数: <data> — 要发送的数据，为变量引用（如 {send_data}）或字符串。
+    返回值: SEND OK — 数据发送完成。
+    注意: 须在 at+qisend 收到 '>' 后使用。此命令不加回车换行(end_rn=false)。
+  params:
+    - {name: data, type: string, required: true}
+  expect: [SEND OK]
+  timeout: 10.0
+  end_rn: false
+  standard: vendor
+
+at+qiurc_recv:
+  command: ''
+  type: urc
+  name: 等待TCP回显
+  description: |-
+    被动等待TCP服务器返回数据的URC通知。
+    此命令不发送任何AT指令，仅等待URC事件。
+    返回值: +QIURC: "recv",<conn>,<length> — <conn>为连接ID，<length>为接收到的数据字节数。
+    收到此URC后可通过 at+qird 读取数据内容。
+  expect: ['+QIURC: "recv"']
+  timeout: 10.0
+  standard: vendor
+
+at+qird:
+  command: AT+QIRD={conn},{length}
+  name: TCP读取数据
+  description: |-
+    从TCP连接缓冲区读取已接收的数据。
+    参数: <conn> — 连接ID, <length> — 要读取的字节数(设为0读取全部可用数据)。
+    返回值: +QIRD: <length>\r\n<data> — <length>为实际读取的字节数，<data>为数据内容（hex或文本）。
+    后跟 OK。如连接已被远端关闭，还会有 +QIURC: "closed",<conn>。
+  params:
+    - {name: conn, type: int, default: 0}
+    - {name: length, type: string, default: '1500'}
+  expect: ['+QIRD:', OK]
+  timeout: 10.0
+  standard: vendor
+
+at+qiclose:
+  command: AT+QICLOSE={conn}
+  name: TCP关闭连接
+  description: |-
+    关闭指定TCP连接，释放Socket资源。
+    参数: <conn> — 连接ID。
+    返回值: OK — 连接已关闭。
+    注意: 关闭后此连接ID可重新用于 at+qiopen。
+  params:
+    - {name: conn, type: int, default: 0}
+  expect: [OK]
+  timeout: 5.0
+  standard: vendor
+
+# ── SSL ────────────────────────────────
+
+at+qsslopen:
+  command: AT+QSSLOPEN=1,{conn},0,"{host}",{port},{mode}
+  name: SSL打开连接
+  description: |-
+    打开SSL/TLS加密Socket连接。与 at+qiopen 类似但增加TLS握手和加密。
+    参数:
+      <conn> — 连接ID(0-11)。
+      <host> — 服务器地址。
+      <port> — 服务器端口（通常6020）。
+      <mode> — 0=buffer模式, 1=hex透传模式。
+    返回值: +QSSLOPEN: <conn>,<result> — <result>=0 表示连接+TLS握手成功。
+    后跟 OK。其余同 at+qiopen 错误码。
+  params:
+    - {name: conn, type: int, default: 0}
+    - {name: host, type: string, required: true}
+    - {name: port, type: int, default: 6020}
+    - {name: mode, type: int, default: 1}
+  expect: ['+QSSLOPEN: {conn},0']
+  timeout: 20.0
+  standard: vendor
+
+at+qsslsend:
+  command: AT+QSSLSEND={conn},{length}
+  name: SSL发送请求
+  description: |-
+    向SSL连接声明即将发送的数据长度，与 at+qisend 使用方式相同。
+    参数: <conn> — 连接ID, <length> — 数据字节数。
+    返回值: > — 模组准备好接收数据，后续通过 at+qisend_data 发送实际数据。
+  params:
+    - {name: conn, type: int, default: 0}
+    - {name: length, type: string}
+  expect: ['>']
+  timeout: 1.0
+  standard: vendor
+
+at+qsslurc_recv:
+  command: ''
+  type: urc
+  name: 等待SSL回显
+  description: |-
+    被动等待SSL服务器返回数据的URC通知。
+    返回值: +QSSLURC: "recv",<conn>,<length> — <conn>为连接ID，<length>为接收字节数。
+    收到后可通过 at+qsslrecv 读取数据。
+  expect: ['+QSSLURC: "recv"']
+  timeout: 10.0
+  standard: vendor
+
+at+qsslurc_closed:
+  command: ''
+  type: urc
+  name: 等待SSL关闭通知
+  description: |-
+    被动等待SSL连接被远端关闭的URC通知。
+    返回值: +QSSLURC: "closed",<conn> — <conn>为被关闭的连接ID。
+  expect: ['+QSSLURC: "closed"']
+  timeout: 10.0
+  standard: vendor
+
+at+qsslrecv:
+  command: AT+QSSLRECV={conn},{length}
+  name: SSL读取数据
+  description: |-
+    从SSL连接缓冲区读取已接收的数据。与 at+qird 使用方式相同。
+    参数: <conn> — 连接ID, <length> — 读取字节数(0=读取全部)。
+    返回值: +QSSLRECV: <length>\r\n<data> — <length>为实际读取字节数，<data>为数据。
+    后跟 OK。
+  params:
+    - {name: conn, type: int, default: 0}
+    - {name: length, type: string, default: '1500'}
+  expect: ['+QSSLRECV:', OK]
+  timeout: 10.0
+  standard: vendor
+
+at+qsslclose:
+  command: AT+QSSLCLOSE={conn}
+  name: SSL关闭连接
+  description: |-
+    关闭指定SSL连接，释放资源。与 at+qiclose 使用方式相同。
+    参数: <conn> — 连接ID。
+    返回值: OK — SSL连接已关闭。
+  params:
+    - {name: conn, type: int, default: 0}
+  expect: [OK]
+  timeout: 5.0
+  standard: vendor
+
+# ── FOTA ───────────────────────────────
+
+at+qfotadl:
+  command: AT+QFOTADL="{url}",{auto_install},{retry_count},{interval}
+  name: FOTA固件下载
+  description: |-
+    触发FOTA远程固件下载和升级流程。
+    参数:
+      <url> — 固件包的HTTP/HTTPS下载地址。
+      <auto_install> — 1=下载完成后自动安装, 0=仅下载不安装。
+      <retry_count> — 下载失败重试次数(建议10)。
+      <interval> — 重试间隔秒数(建议10)。
+    返回值: OK — 下载指令已接收。
+      随后产生 +QIND: "FOTA","ENTER MINI SYSTEM" — 模组进入升级模式。
+    注意: 升级过程模组会重启，期间AT通信中断。
+  params:
+    - {name: url, type: string, required: true}
+    - {name: auto_install, type: int, default: 1}
+    - {name: retry_count, type: int, default: 10}
+    - {name: interval, type: int, default: 10}
+  expect: ['+QIND: "FOTA","ENTER MINI SYSTEM"']
+  timeout: 1.0
+  standard: vendor
+
+at+qind_httpstart:
+  command: ''
+  type: urc
+  name: 等待FOTA下载开始
+  description: |-
+    等待FOTA HTTP下载开始的URC通知。不发送任何AT指令。
+    返回值: +QIND: "FOTA","HTTPSTART" — 下载已开始。
+    超时300秒，需考虑固件包大小和网络速度适当调整。
+  expect: ['+QIND: "FOTA","HTTPSTART"']
+  timeout: 300.0
+  standard: vendor
+
+at+qind_httpend:
+  command: ''
+  type: urc
+  name: 等待FOTA下载完成
+  description: |-
+    等待FOTA HTTP下载完成的URC通知。
+    返回值: +QIND: "FOTA","HTTPEND",<result> — <result>=0 表示下载成功，非0为错误码。
+    下载成功后自动开始固件更新。
+  expect: ['+QIND: "FOTA","HTTPEND",0']
+  timeout: 300.0
+  standard: vendor
+
+at+qind_fota_start:
+  command: ''
+  type: urc
+  name: 等待FOTA升级开始
+  description: |-
+    等待FOTA固件更新开始的URC通知。下载完成后自动触发，无需手动操作。
+    返回值: +QIND: "FOTA","START" — 固件更新已开始。
+    更新期间模组不可通信。
+  expect: ['+QIND: "FOTA","START"']
+  timeout: 300.0
+  standard: vendor
+
+at+qind_fota_end:
+  command: ''
+  type: urc
+  name: 等待FOTA升级完成
+  description: |-
+    等待FOTA固件更新完成的URC通知。
+    返回值: +QIND: "FOTA","END",<result> — <result>=0 表示升级成功，新固件已运行。
+    非0表示升级失败，需排查错误码。
+    升级成功后模组重启输出 RDY 信号，需重新 AT 握手。
+  expect: ['+QIND: "FOTA","END",0']
+  timeout: 300.0
+  standard: vendor
+
+# ── 扩展配置 (EC200x PDF) ─────────────────
+
+at+qcfg:
+  command: AT+QCFG="{cmd}"[,{value}]
+  name: 扩展配置
+  description: |-
+    移远扩展设置总入口，包含多个子命令。
+    子命令: gprsattach(附着模式), nwscanmode(搜索模式), nwscanseq(搜索序列),
+    roamservice(漫游), servicedomain(服务域), band(频段), urc/ri/other(RI行为),
+    urcdelay(延迟), urc/cache(缓存)。
+    返回值: OK 或 +QCFG: <cmd>,<value>（查询时）。
+  params:
+    - {name: cmd, type: string, required: true}
+    - {name: value, type: string}
+  expect: [OK]
+  timeout: 1.0
+  standard: vendor
+
+at+qindcfg:
+  command: AT+QINDCFG="{urc}"[,{enable}]
+  name: URC指示控制
+  description: |-
+    控制特定URC的上报开关。
+    参数: <urc> — URC名称字符串。
+    返回值: OK。
+  params:
+    - {name: urc, type: string, required: true}
+    - {name: enable, type: int, default: 0}
+  expect: [OK]
+  timeout: 1.0
+  standard: vendor
+
+at+qurccfg:
+  command: AT+QURCCFG="{urc}"[,{enable}]
+  name: URC上报选项配置
+  description: |-
+    配置URC上报选项。控制特定URC事件的使能/禁用。
+    返回值: OK。
+  params:
+    - {name: urc, type: string, required: true}
+    - {name: enable, type: int}
+  expect: [OK]
+  timeout: 1.0
+  standard: vendor
+
+at+qpinc:
+  command: AT+QPINC?
+  name: PIN剩余次数查询
+  description: |-
+    查询PIN/PIN2/PUK/PUK2剩余尝试次数。
+    返回值: +QPINC: <pinc>,<pukc>,<pin2c>,<puk2c>
+    后跟 OK。
+  expect: ['+QPINC:', OK]
+  timeout: 1.0
+  standard: vendor
+
+at+qinistat:
+  command: AT+QINISTAT
+  name: SIM卡初始化状态
+  description: |-
+    查询(U)SIM卡初始化状态。
+    返回值: +QINISTAT: 0=未初始化, 1=初始化中, 2=完成, 3=有PIN锁。
+    后跟 OK。
+  expect: ['+QINISTAT:', OK]
+  timeout: 1.0
+  standard: vendor
+
+at+qsimdet:
+  command: AT+QSIMDET={mode}[,{insert_level}]
+  name: SIM卡检测配置
+  description: |-
+    配置(U)SIM卡热插拔检测。
+    参数: <mode>=0 关闭, =1 开启, =2 切卡槽。
+    返回值: OK。
+  params:
+    - {name: mode, type: int, default: 0}
+    - {name: insert_level, type: int}
+  expect: [OK]
+  timeout: 1.0
+  standard: vendor
+
+at+qsimstat:
+  command: AT+QSIMSTAT?
+  name: SIM卡插入状态
+  description: |-
+    查询(U)SIM卡插入状态。
+    返回值: +QSIMSTAT: 0=未插入, 1=已插入。
+    后跟 OK。
+  expect: ['+QSIMSTAT:', OK]
+  timeout: 1.0
+  standard: vendor
+
+at+qlts:
+  command: AT+QLTS?
+  name: 网络时间同步
+  description: |-
+    获取通过网络(NITZ)同步的最新时间。
+    返回值: +QLTS: "<time>"[,<dst>]
+    后跟 OK。
+  expect: ['+QLTS:', OK]
+  timeout: 1.0
+  standard: vendor
+
+at+qnwinfo:
+  command: AT+QNWINFO
+  name: 查询网络信息
+  description: |-
+    查询当前注册网络的详细信息：接入技术、运营商、频段、信道。
+    返回值: +QNWINFO: <act>,<oper>,<band>,<channel>
+    后跟 OK。
+  expect: ['+QNWINFO:', OK]
+  timeout: 1.0
+  standard: vendor
+
+at+qcmgs:
+  command: AT+QCMGS="{da}"[,{toda}]
+  name: 发送长短信
+  description: |-
+    发送拼接/长短信（Concatenated SMS），支持超过160字符。
+    参数: <da> — 目标号码。
+    返回值: +QCMGS: <mr>，后跟 OK。
+  params:
+    - {name: da, type: string, required: true}
+    - {name: toda, type: int}
+  expect: ['+QCMGS:', OK]
+  timeout: 60.0
+  standard: vendor
+
+at+qcmgr:
+  command: AT+QCMGR={index}
+  name: 读取长短信
+  description: |-
+    读取指定索引的拼接/长短信。
+    参数: <index> — 消息存储索引。
+    返回值: 多行消息内容，后跟 OK。
+  params:
+    - {name: index, type: int, required: true}
+  expect: [OK]
+  timeout: 5.0
+  standard: vendor
+
+at+qgdcnt:
+  command: AT+QGDCNT?
+  name: 数据流量统计
+  description: |-
+    查询分组数据计数器（已发送/接收字节数）。
+    返回值: +QGDCNT: <tx_bytes>,<rx_bytes>
+    后跟 OK。
+  expect: ['+QGDCNT:', OK]
+  timeout: 1.0
+  standard: vendor
+
+at+qaugdcnt:
+  command: AT+QAUGDCNT={enable}
+  name: 自动保存流量统计
+  description: |-
+    配置自动保存数据计数器的开关。
+    参数: <enable>=0 关闭, =1 开启自动保存到NVM。
+    返回值: OK。
+  params:
+    - {name: enable, type: int, default: 1}
+  expect: [OK]
+  timeout: 1.0
+  standard: vendor
+
+at+qpowd:
+  command: AT+QPOWD[={mode}]
+  name: 关机指令
+  description: |-
+    控制模组关机。建议在断电前调用以确保数据保存。
+    参数: <mode>=0 紧急, =1 正常(默认), =2 关机并关闭PMU。
+    返回值: OK — 关机开始。需重新上电唤醒。
+  params:
+    - {name: mode, type: int, default: 1}
+  expect: [OK]
+  timeout: 5.0
+  standard: vendor

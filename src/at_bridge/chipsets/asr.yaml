@@ -1,0 +1,67 @@
+# ASR 平台 AT 私有命令与平台特性
+# 适用芯片: ASR5311 / ASR580X / ASR160X 系列 (Crane CAT1 SDK)
+# 加载顺序: _3gpp.yaml → asr.yaml → _custom.yaml
+# 此文件中的 key 会覆盖 _3gpp.yaml 中的同名 key
+
+# ── 平台识别 ────────────────────────────
+# 发送 AT+GMI 测试返回的制造商字符串匹配规则:
+#   - 返回 "ASR" → ASR 平台
+#   - AT+GMR 含 "CRANE_CAT1" → Crane CAT1 SDK 系列
+#   - USB VID=0x2ECC, PID=0x3010 → ASR 设备
+
+# ── ASR 私有 AT* 命令 ────────────────
+
+at*calinfo:
+  command: AT*CalInfo=R,LteCal
+  name: 查询LTE校准信息
+  description: |-
+    查询LTE射频校准数据。
+    返回值: *CALINFO: LteCal,<result>
+      <result>: PASS_<date> 表示校准通过。
+    后跟 OK。实测: LteCal,PASS_202511050911。
+  expect: ['*CALINFO:', OK]
+  timeout: 1.0
+  standard: vendor
+
+at*csq:
+  command: AT*CSQ
+  name: 查询信号(Crane私有)
+  description: |-
+    Crane/ASR私有信号查询命令。与标准AT+CSQ格式相同。
+    返回值: +CSQ: <rssi>,<ber>
+  expect: ['+CSQ:', OK]
+  timeout: 1.0
+  standard: vendor
+
+# ── ASR 平台特定行为 ──────────────────
+# 以下命令在ASR平台上有与标准3GPP不同的映射行为
+
+at+creg_asr_note:
+  command: AT+CREG?
+  name: 网络注册(ASR映射)
+  description: |-
+    ASR平台会将CREG映射到CEREG，返回值格式与CEREG相同。
+    即发出 AT+CREG? 实际上返回的是 +CEREG: <n>,<stat>,...
+    这是在ASR平台上需要注意的兼容性差异。
+  expect: ['+CEREG:', OK]
+  timeout: 1.0
+  standard: vendor
+
+at+cgreg_asr_note:
+  command: AT+CGREG?
+  name: GPRS注册(ASR映射)
+  description: |-
+    ASR平台会将CGREG也映射到CEREG，返回值与CEREG相同。
+    CREC/CGREG/CEREG三个命令返回相同内容。
+  expect: ['+CEREG:', OK]
+  timeout: 1.0
+  standard: vendor
+
+# ── CLAC 特殊性 ────────────────────────
+# ASR平台的AT+CLAC有流式行为:
+#   1. 直接发 AT+CLAC 只返回ATE（首条命令名）
+#   2. 后续每个命令返回列表中的下一条命令名
+#   3. 发送 AT+GCAP 会进入同样的命令列表枚举模式
+#   4. 列表耗尽后恢复正常响应
+# 这意味着批量测试时要注意避开AT+CLAC和AT+GCAP，否则
+# 后续命令的实际响应会被命令列表污染。
