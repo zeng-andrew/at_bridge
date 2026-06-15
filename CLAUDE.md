@@ -23,16 +23,28 @@ uv run python -c "from src.at_bridge.serial_handler import SerialHandler; print(
 
 ```
 main.py                        # Entry point -- runs MCP server on stdio
-src/at_bridge/
+at_bridge/
   __init__.py                  # Package metadata
-  server.py                    # MCP server: 11 tool definitions + handlers
-  serial_handler.py            # Serial port I/O (list, open, close, send AT, auto-detect)
-  knowledge_store.py           # AT command knowledge base CRUD (YAML-based)
-  chipsets/                    # Platform-specific command libraries (shipped with package)
-    _3gpp.yaml                 #   3GPP standard base (read-only)
-    asr.yaml                   #   ASR platform commands (writable via MCP)
-    quectel.yaml               #   Quectel vendor commands (writable via MCP)
-    _custom.yaml               #   User scratchpad (auto-created on first add)
+  server.py                    # MCP server: 12 tool definitions + handlers
+  serial_handler.py            # Serial port I/O + batch test engine
+  knowledge_store.py           # YAML knowledge base CRUD with two-layer storage
+  chipsets/                    # Platform command libraries (shipped with package)
+    _3gpp.yaml                 #   49 3GPP standard commands (read-only)
+    asr.yaml                   #   4 ASR platform-specific entries
+    quectel.yaml               #   48 Quectel vendor commands
+```
+
+## Installation
+
+```bash
+# From source
+uv sync
+uv run at-bridge
+
+# Or build and install
+uv build
+uv tool install dist/at_bridge-0.1.0-py3-none-any.whl
+at-bridge
 ```
 
 - **`serial_handler.py`** -- Low-level serial I/O using `pyserial`. `PortConfig` dataclass + `SerialHandler` class owns connection state. All serial operations go through this.

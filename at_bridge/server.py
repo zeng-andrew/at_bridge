@@ -521,7 +521,13 @@ def _format_knowledge_entry(cmd: dict) -> str:
     return text
 
 
-async def main():
-    """Run the MCP server via stdio transport."""
+def main():
+    """Sync entry point for the MCP server (stdio transport)."""
+    import asyncio
+    asyncio.run(_run())
+
+
+async def _run():
+    """Async runner for the MCP server."""
     async with stdio_server() as (read_stream, write_stream):
         await server.run(read_stream, write_stream, server.create_initialization_options())

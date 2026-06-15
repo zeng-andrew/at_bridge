@@ -6,17 +6,16 @@ readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
     "mcp>=1.27.2",
-    "pypdf>=6.13.2",
     "pyserial>=3.5",
     "pyyaml>=6.0.3",
 ]
 
 [project.scripts]
-at-bridge = "src.at_bridge.server:main"
+at-bridge = "at_bridge.server:main"
 
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/at_bridge"]
+packages = ["at_bridge"]
