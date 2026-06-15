@@ -19,3 +19,17 @@ build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
 packages = ["at_bridge"]
+
+[tool.hatch.build]
+include = [
+    "at_bridge/chipsets/*.yaml",
+]
+
+[tool.hatch.build.targets.sdist]
+include = [
+    "/at_bridge",
+    "/main.py",
+    "/README.md",
+    "/pyproject.toml",
+    "/LICENSE",
+]

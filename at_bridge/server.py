@@ -453,7 +453,8 @@ async def call_tool(name: str, arguments: dict) -> list:
         stats = kb.get_stats()
         text = f"AT 命令知识库统计:\n\n"
         text += f"  命令总数: {stats['total_commands']}\n"
-        text += f"  存储目录: {stats['chipsets_dir']}\n\n"
+        text += f"  包内目录: {stats['package_dir']}\n"
+        text += f"  用户目录: {stats['user_dir']}\n\n"
         text += "源文件分布:\n"
         for src in stats["source_files"]:
             text += f"  {src['file']:25s} — {src['count']} 条\n"

@@ -20,13 +20,32 @@ Writes always go to user layer, package layer stays pristine.
 import os
 import re
 from collections import OrderedDict
-from copy import deepcopy
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
+from importlib import resources
 from pathlib import Path
 from typing import Optional
 
 import yaml
+
+
+# Try to import resources.files (Python 3.9+) with fallback
+try:
+    _resource_files = resources.files
+except AttributeError:
+    # Python 3.8 fallback — not needed for this project (requires 3.12)
+    _resource_files = None
+
+
+def _get_package_chipsets_dir() -> Path:
+    """Return the package's read-only chipsets directory.
+
+    Uses importlib.resources so it works both in development and when
+    installed as a wheel (where files may be in a zip).
+    """
+    if _resource_files is None:
+        raise RuntimeError("importlib.resources.files is not available")
+    return _resource_files("at_bridge") / "chipsets"
 
 # ── Data model ──────────────────────────────────────────────────────────
 
@@ -106,7 +125,7 @@ class KnowledgeStore:
     """Manages AT command knowledge from chipsets/*.yaml files."""
 
     # Package chipsets: read-only, shipped with the code
-    _PKG_DIR = Path(__file__).resolve().parent / "chipsets"
+    _PKG_DIR = _get_package_chipsets_dir()
 
     @staticmethod
     def _user_data_dir() -> Path:
