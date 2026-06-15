@@ -2,6 +2,7 @@
 
 from mcp.server import Server
 from mcp.server.stdio import stdio_server
+from mcp.types import Tool
 
 from .serial_handler import SerialHandler
 from .knowledge_store import KnowledgeStore
@@ -15,260 +16,260 @@ server = Server("at-bridge")
 
 
 @server.list_tools()
-async def list_tools() -> list:
+async def list_tools() -> list[Tool]:
     """List available MCP tools."""
     return [
-        {
-            "name": "at_list_ports",
-            "description": "列出系统中所有可用的 COM/串口设备。返回端口名、描述、硬件ID、VID/PID 等信息。",
-            "inputSchema": {
+        Tool(
+            name="at_list_ports",
+            description="List all available COM/serial ports. Returns device name, description, hardware ID, VID/PID.",
+            inputSchema={
                 "type": "object",
                 "properties": {},
                 "required": [],
             },
-        },
-        {
-            "name": "at_configure",
-            "description": "配置串口通信参数（波特率、数据位、校验位、停止位、流控等）。打开端口前或打开后均可调用。",
-            "inputSchema": {
+        ),
+        Tool(
+            name="at_configure",
+            description="Configure serial port parameters (baud rate, data bits, parity, stop bits, flow control). Can be called before or after opening the port.",
+            inputSchema={
                 "type": "object",
                 "properties": {
                     "baudrate": {
                         "type": "integer",
-                        "description": "波特率，常用值: 9600, 115200, 921600, 1000000。默认 115200。",
+                        "description": "Baud rate. Common values: 9600, 115200, 921600, 1000000. Default 115200.",
                         "default": 115200,
                     },
                     "bytesize": {
                         "type": "integer",
-                        "description": "数据位: 5, 6, 7, 8。默认 8。",
+                        "description": "Data bits: 5, 6, 7, 8. Default 8.",
                         "default": 8,
                     },
                     "parity": {
                         "type": "string",
-                        "description": "校验位: N(无), E(偶校验), O(奇校验), M(标记), S(空格)。默认 N。",
+                        "description": "Parity: N(None), E(Even), O(Odd), M(Mark), S(Space). Default N.",
                         "default": "N",
                     },
                     "stopbits": {
                         "type": "number",
-                        "description": "停止位: 1, 1.5, 2。默认 1。",
+                        "description": "Stop bits: 1, 1.5, 2. Default 1.",
                         "default": 1,
                     },
                     "timeout": {
                         "type": "number",
-                        "description": "读取超时(秒)。默认 1.0。",
+                        "description": "Read timeout in seconds. Default 1.0.",
                         "default": 1.0,
                     },
                     "rtscts": {
                         "type": "boolean",
-                        "description": "硬件流控 RTS/CTS。默认 false。",
+                        "description": "Hardware flow control RTS/CTS. Default false.",
                         "default": False,
                     },
                     "xonxoff": {
                         "type": "boolean",
-                        "description": "软件流控 XON/XOFF。默认 false。",
+                        "description": "Software flow control XON/XOFF. Default false.",
                         "default": False,
                     },
                 },
                 "required": [],
             },
-        },
-        {
-            "name": "at_open_port",
-            "description": "打开指定的 COM 口，建立与设备的串口连接。",
-            "inputSchema": {
+        ),
+        Tool(
+            name="at_open_port",
+            description="Open the specified COM port and establish a serial connection.",
+            inputSchema={
                 "type": "object",
                 "properties": {
                     "port": {
                         "type": "string",
-                        "description": "串口设备名。Windows: COM3, COM4 等; Linux: /dev/ttyUSB0, /dev/ttyACM0 等。",
+                        "description": "Serial port device name. Windows: COM3, COM4, etc.; Linux: /dev/ttyUSB0, /dev/ttyACM0, etc.",
                     },
                 },
                 "required": ["port"],
             },
-        },
-        {
-            "name": "at_close_port",
-            "description": "关闭当前打开的 COM 口连接。",
-            "inputSchema": {
+        ),
+        Tool(
+            name="at_close_port",
+            description="Close the currently opened COM port connection.",
+            inputSchema={
                 "type": "object",
                 "properties": {},
                 "required": [],
             },
-        },
-        {
-            "name": "at_auto_detect",
-            "description": "自动探测所有可用 COM 口，逐一尝试连接并发送 AT 测试命令，找出有响应的设备。适合在不确定设备连接到哪个端口时使用。会尝试多种常见波特率。",
-            "inputSchema": {
+        ),
+        Tool(
+            name="at_auto_detect",
+            description="Auto-detect all available COM ports. Tries common baud rates and sends an AT probe command to find responsive devices. Useful when unsure which port the device is connected to.",
+            inputSchema={
                 "type": "object",
                 "properties": {
                     "baudrates": {
                         "type": "array",
                         "items": {"type": "integer"},
-                        "description": "要尝试的波特率列表。默认: 115200, 9600, 921600, 460800, 230400, 57600, 38400, 19200。",
+                        "description": "Baud rate list to try. Default: 115200, 9600, 921600, 460800, 230400, 57600, 38400, 19200.",
                     },
                     "probe_timeout": {
                         "type": "number",
-                        "description": "每次尝试的超时秒数，越小越快但可能漏掉响应慢的设备。默认 0.5。",
+                        "description": "Timeout per probe in seconds. Smaller is faster but may miss slow devices. Default 0.5.",
                         "default": 0.5,
                     },
                     "test_command": {
                         "type": "string",
-                        "description": "用于探测的 AT 命令。默认 'AT'。",
+                        "description": "AT command used for probing. Default 'AT'.",
                         "default": "AT",
                     },
                 },
                 "required": [],
             },
-        },
-        {
-            "name": "at_send_command",
-            "description": "发送 AT 命令到已连接的设备并读取响应。这是调试 AT 命令的核心工具。命令会自动补全 AT 前缀（如输入 'CSQ' 会发送 'AT+CSQ'）。支持标准 AT 命令、扩展 AT+ 命令等。",
-            "inputSchema": {
+        ),
+        Tool(
+            name="at_send_command",
+            description="Send an AT command to the connected device and read the response. Auto-prepends AT prefix (e.g. 'CSQ' becomes 'AT+CSQ'). Supports standard AT and extended AT+ commands.",
+            inputSchema={
                 "type": "object",
                 "properties": {
                     "command": {
                         "type": "string",
-                        "description": "要发送的 AT 命令。例如: 'AT', 'AT+CGMI', 'AT+CSQ', 'AT+CREG?', 或省略 AT 前缀如 'CGMI', '+CSQ'。",
+                        "description": "AT command to send. Examples: 'AT', 'AT+CGMI', 'AT+CSQ', 'AT+CREG?', or omit AT prefix like 'CGMI', '+CSQ'.",
                     },
                     "read_until": {
                         "type": "string",
-                        "description": "可选。读到指定字符串后停止等待更多响应。",
+                        "description": "Optional. Stop reading after encountering this string.",
                     },
                 },
                 "required": ["command"],
             },
-        },
-        {
-            "name": "at_batch_test",
-            "description": "批量测试 AT 命令。发送一组 AT 命令到已连接的设备，一次性返回所有结果（含自动分类：PASS/OK/ERR/CME）。比逐条调用 at_send_command 高效得多，适合验证知识库中的命令列表。",
-            "inputSchema": {
+        ),
+        Tool(
+            name="at_batch_test",
+            description="Batch-test AT commands. Sends a list of AT commands to the connected device and returns all results with automatic classification (PASS/OK/ERR/CME). Much more efficient than calling at_send_command repeatedly; good for validating a command list from the knowledge base.",
+            inputSchema={
                 "type": "object",
                 "properties": {
                     "commands": {
                         "type": "array",
                         "items": {"type": "string"},
-                        "description": "要测试的 AT 命令列表。例如 ['AT', 'AT+CSQ', 'AT+CGMI']。每条约 4ms，大批量建议按类别分组，每组 20-30 条。",
+                        "description": "List of AT commands to test. Example: ['AT', 'AT+CSQ', 'AT+CGMI']. About 4ms each; for large batches, group by category in chunks of 20-30.",
                     },
                     "timeout": {
                         "type": "number",
-                        "description": "每条命令的超时秒数。默认 1.0。",
+                        "description": "Timeout per command in seconds. Default 1.0.",
                         "default": 1.0,
                     },
                 },
                 "required": ["commands"],
             },
-        },
-        {
-            "name": "at_knowledge_search",
-            "description": "搜索 AT 命令知识库。支持按关键词（key/命令名/描述）和来源（3gpp/vendor/custom）过滤。适合在不确定命令是什么时查找相关 AT 命令。",
-            "inputSchema": {
+        ),
+        Tool(
+            name="at_knowledge_search",
+            description="Search the AT command knowledge base. Supports filtering by keyword (key/name/description/AT string) and source (3gpp/vendor/custom).",
+            inputSchema={
                 "type": "object",
                 "properties": {
                     "query": {
                         "type": "string",
-                        "description": "搜索关键词。搜索范围: key(如'csq')、命令名、描述、AT指令字符串。例如 '信号', 'tcp', 'CGMI'。留空返回所有命令。",
+                        "description": "Search keyword. Searches key, name, description, AT string. Examples: 'signal', 'tcp', 'CGMI'. Empty returns all commands.",
                     },
                     "standard": {
                         "type": "string",
-                        "description": "按标准过滤: 3gpp(标准命令), vendor(厂商私有), custom(自定义)。",
+                        "description": "Filter by source: 3gpp (standard), vendor (vendor-specific), custom (user-defined).",
                     },
                     "tags": {
                         "type": "array",
                         "items": {"type": "string"},
-                        "description": "标签过滤（匹配任一标签即可）。例 ['urc', 'quectel']。",
+                        "description": "Tag filter (matches any tag). Example: ['urc', 'quectel'].",
                     },
                 },
                 "required": [],
             },
-        },
-        {
-            "name": "at_knowledge_chipsets",
-            "description": "列出所有可用的芯片平台知识库文件。AI 应先调用此工具了解有哪些平台，然后通过 at_knowledge_add 将命令添加到对应的平台文件。",
-            "inputSchema": {
+        ),
+        Tool(
+            name="at_knowledge_chipsets",
+            description="List available chipset knowledge base files. AI should call this first to know which platforms exist, then use at_knowledge_add to write to the appropriate platform file.",
+            inputSchema={
                 "type": "object",
                 "properties": {},
                 "required": [],
             },
-        },
-        {
-            "name": "at_knowledge_add",
-            "description": "向知识库添加/更新一条 AT 命令。存储到指定芯片平台文件（如 asr、quectel）或 _custom 中。通过 at_knowledge_chipsets 查看可用的平台名。",
-            "inputSchema": {
+        ),
+        Tool(
+            name="at_knowledge_add",
+            description="Add or update an AT command in the knowledge base. Stores in the specified chipset file (e.g. asr, quectel) or _custom. Use at_knowledge_chipsets to see available platforms.",
+            inputSchema={
                 "type": "object",
                 "properties": {
                     "key": {
                         "type": "string",
-                        "description": "YAML slug/key，如 'at+csq', 'at+qcell'。必须唯一。",
+                        "description": "YAML slug/key, e.g. 'at+csq', 'at+qcell'. Must be unique.",
                     },
                     "command": {
                         "type": "string",
-                        "description": "实际 AT 指令字符串。如 'AT+CSQ', 'AT+QCELL?'。支持 {param} 变量占位。",
+                        "description": "Actual AT command string. Example: 'AT+CSQ', 'AT+QCELL?'. Supports {param} placeholders.",
                     },
                     "name": {
                         "type": "string",
-                        "description": "中文简短名称，如 '信号质量'。",
+                        "description": "Short name, e.g. 'Signal Quality'.",
                     },
                     "description": {
                         "type": "string",
-                        "description": "功能描述，包含返回值含义。支持多行文本。",
+                        "description": "Function description including return value meanings. Multi-line supported.",
                     },
                     "chipset": {
                         "type": "string",
-                        "description": "目标芯片平台。通过 at_knowledge_chipsets 查看可选列表。默认为 '_custom'（用户暂存区）。常用: asr, quectel。",
+                        "description": "Target chipset platform. See at_knowledge_chipsets for options. Default '_custom' (user scratchpad). Common: asr, quectel.",
                     },
                     "standard": {
                         "type": "string",
-                        "description": "来源: 3gpp / vendor / custom。默认 vendor。",
+                        "description": "Source: 3gpp / vendor / custom. Default vendor.",
                     },
                     "expect": {
                         "type": "array",
                         "items": {"type": "string"},
-                        "description": "期望响应模式列表。如 ['+CSQ:', 'OK']。",
+                        "description": "Expected response patterns. Example: ['+CSQ:', 'OK'].",
                     },
                     "timeout": {
                         "type": "number",
-                        "description": "超时秒数。默认 1.0。",
+                        "description": "Timeout in seconds. Default 1.0.",
                     },
                     "retry": {
                         "type": "integer",
-                        "description": "重试次数。默认 1。",
+                        "description": "Retry count. Default 1.",
                     },
                     "params": {
                         "type": "array",
                         "items": {"type": "object"},
-                        "description": "参数列表。每个参数含 name/type/default/required。",
+                        "description": "Parameter list. Each param has name/type/default/required.",
                     },
                     "type": {
                         "type": "string",
-                        "description": "命令类型: 空=AT命令, urc=被动URC等待, data=透传数据。",
+                        "description": "Command type: empty=AT command, urc=passive URC wait, data=transparent data send.",
                     },
                 },
                 "required": ["key", "command"],
             },
-        },
-        {
-            "name": "at_knowledge_list",
-            "description": "列出知识库中所有 AT 命令（可按来源过滤）。显示 key、名称、期望响应等摘要信息。",
-            "inputSchema": {
+        ),
+        Tool(
+            name="at_knowledge_list",
+            description="List all commands in the knowledge base, optionally filtered by source. Shows key, name, and expected response summary.",
+            inputSchema={
                 "type": "object",
                 "properties": {
                     "standard": {
                         "type": "string",
-                        "description": "按来源过滤: 3gpp / vendor / custom。不填则全部。",
+                        "description": "Filter by source: 3gpp / vendor / custom. Empty returns all.",
                     },
                 },
                 "required": [],
             },
-        },
-        {
-            "name": "at_knowledge_stats",
-            "description": "查看知识库统计信息：命令总数、各 YAML 源文件条目数、来源分布。",
-            "inputSchema": {
+        ),
+        Tool(
+            name="at_knowledge_stats",
+            description="Show knowledge base statistics: total commands, per-source YAML file breakdown, source distribution.",
+            inputSchema={
                 "type": "object",
                 "properties": {},
                 "required": [],
             },
-        },
+        ),
     ]
 
 
